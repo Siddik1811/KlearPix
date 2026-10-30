@@ -278,8 +278,8 @@ export interface AdminCredentials {
 }
 
 export const DEFAULT_ADMIN_CREDENTIALS: AdminCredentials = {
-  adminId: 'admin',
-  password: 'admin123',
+  adminId: 'Admin',
+  password: 'Siddikkhan_1811',
 };
 
 export function loadAdminCredentials(): AdminCredentials {
