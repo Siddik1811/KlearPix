@@ -1,0 +1,6 @@
+{
+  "name": "AlphaUnblend Studio",
+  "description": "Free lossless Gemini, Veo 3, Flow, Nano Banana & Nanonets video and image watermark remover powered by client-side mathematical alpha unblending.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

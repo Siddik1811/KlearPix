@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlphaUnblend Studio</title>
+    <meta
+      name="description"
+      content="Free lossless Gemini, Veo 3, Flow, Nano Banana & Nanonets video and image watermark remover powered by client-side mathematical alpha unblending."
+    />
+    <meta
+      name="keywords"
+      content="gemini watermark remover, veo 3 watermark remover, nanonets watermark remover, nano banana watermark remover, google flow video watermark remover, bulk ai watermark remover, remove ai metadata exif c2pa, lossless watermark remover"
+    />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <meta name="theme-color" content="#F8FAFC" />
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AlphaUnblend Studio" />
+    <meta property="og:title" content="AlphaUnblend Studio" />
+    <meta
+      property="og:description"
+      content="Free lossless Gemini, Veo 3, Flow, Nano Banana & Nanonets video and image watermark remover powered by client-side mathematical alpha unblending."
+    />
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AlphaUnblend Studio" />
+    <meta
+      name="twitter:description"
+      content="Free lossless Gemini, Veo 3, Flow, Nano Banana & Nanonets video and image watermark remover powered by client-side mathematical alpha unblending."
+    />
+
+    <!-- Google Fonts: Plus Jakarta Sans (Display), DM Sans (Body), JetBrains Mono (Telemetry) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Schema.org Structured Data (JSON-LD) for Top Google Search Ranking -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "KlearPix — AI Image & Video Watermark Remover",
+            "alternateName": [
+              "AlphaUnblend Studio",
+              "Gemini Watermark Remover",
+              "Veo 3 Video Watermark Remover",
+              "Nanonets & Nano Banana Image Watermark Remover",
+              "Google Flow Video Logo Unblender",
+              "AI EXIF & C2PA Metadata Cleaner"
+            ],
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "Image and Video Watermark Unblender",
+            "operatingSystem": "All, Web Browser",
+            "browserRequirements": "Requires HTML5 Canvas and WebCodecs API support",
+            "description": "Free lossless Gemini, Veo 3, Flow, Nano Banana & Nanonets video and image watermark remover powered by client-side mathematical alpha unblending.",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "featureList": [
+              "100% Client-Side Browser Sandbox (Zero Server Uploads)",
+              "Mathematical Alpha Unblending (100% Original Pixel Recovery & Zero Blur)",
+              "Direct Clipboard Paste (Ctrl+V) and Image URL Import",
+              "Multi-Image Bulk Watermark Remover",
+              "AI Metadata & EXIF / C2PA Privacy Shield",
+              "Lossless PNG, WebP, and JPG Format & HD Upscale Converter",
+              "Gemini Omni, Google Flow & Veo 3 Video Watermark Unblending with Audio Passthrough",
+              "Cryptographic Magic-Byte File Header Verification"
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How does KlearPix remove Gemini, Veo 3, and Nanonets watermarks without losing quality?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Instead of blurring or AI inpainting over the watermark, KlearPix uses inverse mathematical alpha compositing: Original = (Watermarked - Alpha * 255) / (1 - Alpha). This recovers the exact original pixels underneath with 100% native resolution and zero quality loss."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I remove watermarks from multiple AI photos at once and strip hidden AI EXIF metadata?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. You can select multiple images at once for 1-click bulk watermark removal, paste directly using Ctrl+V, convert between PNG, WebP, and JPG, and automatically strip hidden EXIF/C2PA metadata tags."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does video watermark removal preserve original resolution and audio?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Videos are processed locally via hardware-accelerated WebCodecs at native resolution, only unblending the exact watermark bounding box while passing through the original encoded audio stream without re-compression."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body class="bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-blue-600 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
