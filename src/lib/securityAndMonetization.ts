@@ -206,8 +206,8 @@ const ADMIN_SESSION_KEY = 'clearmark_admin_session_v1';
 export const DEFAULT_MONETIZATION_CONFIG: MonetizationConfig = {
   enabled: true,
   networkName: 'Monetag',
-  imageDownloadAdUrl: 'https://omg10.com/4/11542046',
-  videoExportAdUrl: 'https://omg10.com/4/11584190',
+  imageDownloadAdUrl: 'https://uplcm.com/4/12158181',
+  videoExportAdUrl: 'https://uplcm.com/4/12158178',
   triggerMode: 'every_download',
   smartCountdownModal: true,
   interstitialCountdownSec: 3,
