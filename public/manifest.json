@@ -1,0 +1,17 @@
+{
+  "name": "KlearPix — AI Image & Video Watermark Remover",
+  "short_name": "KlearPix",
+  "description": "Free lossless Gemini, Veo 3, Flow, Nano Banana & Nanonets video and image watermark remover.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563EB",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
