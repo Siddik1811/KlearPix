@@ -34,6 +34,7 @@ import {
   getAdaptiveImagePreset,
   generateSampleWatermarkedImage,
 } from './lib/watermarkEngine';
+
 import {
   verifyFileMagicBytes,
   sanitizeFileName,
@@ -42,6 +43,8 @@ import {
   validateSafeImageUrl,
   MonetizationConfig,
 } from './lib/securityAndMonetization';
+
+
 import { AdminPortal } from './components/AdminPortal';
 import { InfoSections } from './components/InfoSections';
 
