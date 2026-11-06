@@ -4,8 +4,6 @@
 
 **KlearPix** is a fast, 100% client-side AI watermark unblending web application that removes visible corner watermarks from **Google Gemini, Imagen 3, Nano Banana, Google Flow, Veo 3, and Nanonets** photos and videos without blurring or losing native resolution.
 
----
-
 ## 🚀 Key Features
 
 - **100% Lossless Image Unblending:** Uses inverse mathematical alpha compositing (`Original = (Watermarked - α × 255) / (1 - α)`) to restore exact original pixels underneath the watermark.
@@ -16,7 +14,6 @@
 - **Format & HD Upscale Studio:** Export in **PNG (Lossless)**, **WebP**, or **JPG**, with optional **1.5× HD Upscaling**.
 - **6-Layer Security Firewall:** Cryptographic magic-byte file verification, SSRF URL protection, and strict enterprise security headers.
 
----
 
 ## 🛠️ Run Locally
 
