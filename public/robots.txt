@@ -1,5 +1,16 @@
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+
 User-agent: *
 Allow: /
 Disallow: /admin
 
-Sitemap: /sitemap.xml
+Sitemap: https://klearpix.vercel.app/sitemap.xml
