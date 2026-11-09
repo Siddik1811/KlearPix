@@ -50,7 +50,12 @@ import {
 import { AdminPortal } from './components/AdminPortal';
 import { InfoSections } from './components/InfoSections';
 
-export type WorkspaceTab = 'image' | 'bulk' | 'video' | 'enhance';
+export type WorkspaceTab =
+  | 'image'
+  | 'bulk'
+  | 'video'
+  | 'enhance'
+  | 'aitag_shield';
 type ImageFormatMime = 'image/png' | 'image/webp' | 'image/jpeg';
 
 interface BulkPhotoItem {
@@ -221,6 +226,10 @@ export default function App() {
   const [previewOriginalInEnhancer, setPreviewOriginalInEnhancer] =
     useState<boolean>(false);
 
+  // ---------------- NO-AI-TAG STEALTH SHIELD (PHOTO & VIDEO) STATE ----------------
+  const [alsoRemoveWmInAiShield, setAlsoRemoveWmInAiShield] =
+    useState<boolean>(true);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bulkInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -305,6 +314,19 @@ export default function App() {
         if (item.cleanUrl) URL.revokeObjectURL(item.cleanUrl);
       });
       setBulkItems([]);
+    } else if (mode === 'aitag_shield') {
+      if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
+      if (cleanImageOutput?.url) URL.revokeObjectURL(cleanImageOutput.url);
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+      if (cleanVideoOutput?.url) URL.revokeObjectURL(cleanVideoOutput.url);
+      setImageFile(null);
+      setSourcePreviewUrl('');
+      setImageBitmapData(null);
+      setCleanImageOutput(null);
+      setVideoFile(null);
+      setVideoPreviewUrl('');
+      setCleanVideoOutput(null);
+      setVidProgress({ progress: 0, stage: '' });
     } else {
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       if (cleanVideoOutput?.url) URL.revokeObjectURL(cleanVideoOutput.url);
@@ -561,7 +583,15 @@ export default function App() {
       !forceBulkMode &&
       (first.type.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(first.name))
     ) {
-      if (mode !== 'enhance') {
+      if (mode === 'aitag_shield') {
+        // Keep in aitag_shield and clear any loaded photo so video takes over
+        if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
+        if (cleanImageOutput?.url) URL.revokeObjectURL(cleanImageOutput.url);
+        setImageFile(null);
+        setSourcePreviewUrl('');
+        setImageBitmapData(null);
+        setCleanImageOutput(null);
+      } else if (mode !== 'enhance') {
         setMode('video');
       }
       await handleLoadVideo(first);
@@ -579,7 +609,7 @@ export default function App() {
     }
 
     // If user is in Bulk tab, selected 2+ images, or forced bulk mode -> Bulk Queue (Idea #2)
-    if (forceBulkMode || mode === 'bulk' || imageFiles.length > 1) {
+    if (forceBulkMode || mode === 'bulk' || (imageFiles.length > 1 && mode !== 'aitag_shield')) {
       setMode('bulk');
       const newBulk: BulkPhotoItem[] = imageFiles.slice(0, 25).map((file) => ({
         id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -588,7 +618,16 @@ export default function App() {
       }));
       setBulkItems((prev) => [...prev, ...newBulk]);
     } else {
-      setMode('image');
+      if (mode === 'aitag_shield') {
+        // Clear any loaded video so photo takes over in aitag_shield
+        if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+        if (cleanVideoOutput?.url) URL.revokeObjectURL(cleanVideoOutput.url);
+        setVideoFile(null);
+        setVideoPreviewUrl('');
+        setCleanVideoOutput(null);
+      } else {
+        setMode('image');
+      }
       await handleLoadImage(imageFiles[0]);
     }
   };
@@ -598,7 +637,8 @@ export default function App() {
     async (
       customTuner?: TunerOptions,
       customMime?: ImageFormatMime,
-      customScale?: number
+      customScale?: number,
+      removeWmOverride?: boolean
     ) => {
       if (!imgEngine || !imageBitmapData || !imageFile) return;
       setIsImageProcessing(true);
@@ -606,6 +646,8 @@ export default function App() {
         const activeOpts = customTuner || imgTuner;
         const activeMime = customMime || exportMime;
         const activeScale = customScale || exportScale;
+        const shouldRemoveWm =
+          removeWmOverride !== undefined ? removeWmOverride : true;
 
         const { blob, url, outWidth, outHeight } = await imgEngine.exportCleanImage(
           imageBitmapData,
@@ -613,7 +655,9 @@ export default function App() {
           imgDimensions.height,
           activeOpts,
           activeMime,
-          activeScale
+          activeScale,
+          shouldRemoveWm,
+          true
         );
         const ext =
           activeMime === 'image/png'
@@ -621,7 +665,12 @@ export default function App() {
             : activeMime === 'image/webp'
             ? 'webp'
             : 'jpg';
-        const suffix = stripAiMetadata ? 'klearpix_nometa_hd' : 'klearpix_hd';
+        const suffix =
+          mode === 'aitag_shield'
+            ? 'klearpix_no_ai_tag_hd'
+            : stripAiMetadata
+            ? 'klearpix_nometa_hd'
+            : 'klearpix_hd';
         const cleanName = sanitizeFileName(imageFile.name, suffix, ext);
         const sizeKb = (blob.size / 1024).toFixed(1);
         setCleanImageOutput((prev) => {
@@ -766,33 +815,47 @@ export default function App() {
     setBulkItems(demoBulk);
   };
 
-  // Process Video (Watermark Removal OR Dedicated HD/4K Enhancer)
-  const runVideoWatermarkRemoval = async (isDedicatedEnhancerMode = false) => {
+  // Process Video (Watermark Removal, Dedicated HD/4K Enhancer, OR No-AI-Tag Stealth Shield)
+  const runVideoWatermarkRemoval = async (
+    pipelineMode: 'watermark' | 'enhance' | 'aitag_shield' = 'watermark'
+  ) => {
     if (!vidEngine || !videoFile) return;
     setErrorMessage('');
     setIsVideoProcessing(true);
     setVidProgress({
       progress: 0.03,
-      stage: isDedicatedEnhancerMode
-        ? 'Initializing GPU 4K/Reels Enhancer & 30+ Mbps Studio Encoder...'
-        : 'Preparing 25+ Mbps lossless 1080p video pipeline...',
+      stage:
+        pipelineMode === 'aitag_shield'
+          ? 'Scrubbing C2PA, MP4 uuid atoms & SynthID frequency carriers (100% Exact Quality)...'
+          : pipelineMode === 'enhance'
+          ? 'Initializing GPU 4K/Reels Enhancer & 30+ Mbps Studio Encoder...'
+          : 'Preparing 25+ Mbps lossless 1080p video pipeline...',
     });
 
-    const activePreset: VideoEnhancePreset = isDedicatedEnhancerMode
-      ? enhancePreset
-      : boostQualityInVideoRemover
-      ? 'insta_hd'
-      : 'none';
+    const activePreset: VideoEnhancePreset =
+      pipelineMode === 'enhance'
+        ? enhancePreset
+        : pipelineMode === 'aitag_shield'
+        ? 'none'
+        : boostQualityInVideoRemover
+        ? 'insta_hd'
+        : 'none';
 
-    const activeUpscale: VideoUpscaleTarget = isDedicatedEnhancerMode
-      ? upscaleTarget
-      : boostQualityInVideoRemover
-      ? '1080p'
-      : 'native';
+    const activeUpscale: VideoUpscaleTarget =
+      pipelineMode === 'enhance'
+        ? upscaleTarget
+        : pipelineMode === 'aitag_shield'
+        ? 'native'
+        : boostQualityInVideoRemover
+        ? '1080p'
+        : 'native';
 
-    const shouldRemoveWm = isDedicatedEnhancerMode
-      ? alsoRemoveWatermarkInEnhancer
-      : true;
+    const shouldRemoveWm =
+      pipelineMode === 'enhance'
+        ? alsoRemoveWatermarkInEnhancer
+        : pipelineMode === 'aitag_shield'
+        ? alsoRemoveWmInAiShield
+        : true;
 
     try {
       const res = await vidEngine.process(videoFile, {
@@ -800,6 +863,7 @@ export default function App() {
         removeWatermarkEnabled: shouldRemoveWm,
         enhancePreset: activePreset,
         upscaleTarget: activeUpscale,
+        aiTagStealthShield: true,
         onProgress: (info) =>
           setVidProgress({
             progress: info.progress,
@@ -809,7 +873,11 @@ export default function App() {
           }),
       });
       const suffix =
-        activePreset !== 'none' ? 'klearpix_ultra_hd_reels' : 'klearpix_hd';
+        pipelineMode === 'aitag_shield'
+          ? 'klearpix_no_ai_tag_hd'
+          : activePreset !== 'none'
+          ? 'klearpix_ultra_hd_reels'
+          : 'klearpix_hd';
       const cleanName = sanitizeFileName(videoFile.name, suffix, res.ext);
       const sizeMb = (res.blob.size / (1024 * 1024)).toFixed(2);
       setCleanVideoOutput((prev) => {
@@ -861,7 +929,9 @@ export default function App() {
 
   // Active Direct Links for Process & Download buttons
   const processAdUrl = monetization.enabled
-    ? mode === 'video' || mode === 'enhance'
+    ? mode === 'video' ||
+      mode === 'enhance' ||
+      (mode === 'aitag_shield' && !!videoFile)
       ? monetization.videoExportAdUrl
       : monetization.imageDownloadAdUrl
     : undefined;
@@ -878,10 +948,12 @@ export default function App() {
       <input
         ref={fileInputRef}
         type="file"
-        multiple={mode !== 'video' && mode !== 'enhance'}
+        multiple={mode === 'bulk'}
         accept={
           mode === 'video' || mode === 'enhance'
             ? 'video/mp4,video/webm,video/quicktime'
+            : mode === 'aitag_shield'
+            ? 'image/png,image/jpeg,image/webp,video/mp4,video/webm,video/quicktime'
             : 'image/png,image/jpeg,image/webp'
         }
         className="hidden"
@@ -902,32 +974,39 @@ export default function App() {
         }}
       />
 
-      {/* Clean Minimalist Header */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <a href="#" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <span className="font-display font-extrabold text-xl tracking-tight text-slate-900">
-              Klear<span className="text-blue-600">Pix</span>
-            </span>
+      {/* Clean 3-Zone Top Bar Contract */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+          <a
+            href="#"
+            className="font-display font-extrabold text-xl tracking-tight text-slate-900 whitespace-nowrap shrink-0"
+          >
+            Klear<span className="text-blue-600">Pix</span>
           </a>
 
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600">
-            <a href="#workspace" className="hover:text-slate-900 transition-colors">
-              Watermark Remover
+            <a
+              href="#workspace"
+              className="hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
+            >
+              Studio Tools
             </a>
-            <a href="#all-features" className="hover:text-slate-900 transition-colors">
+            <a
+              href="#all-features"
+              className="hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
+            >
               All Features
             </a>
             <a
               href="#supported-models"
-              className="hover:text-slate-900 transition-colors"
+              className="hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
             >
               Supported AI
             </a>
-            <a href="#faq" className="hover:text-slate-900 transition-colors">
+            <a
+              href="#faq"
+              className="hover:text-slate-900 transition-colors whitespace-nowrap shrink-0"
+            >
               FAQ
             </a>
           </nav>
@@ -935,7 +1014,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-display font-semibold text-xs transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-display font-semibold text-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             <Upload className="w-3.5 h-3.5" />
             <span>Upload File</span>
@@ -943,102 +1022,256 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Simple & Fast Consumer Workspace */}
+      {/* Main Studio Workspace — Spacious & Organized for All 5 Tools */}
       <main
         id="workspace"
-        className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 pt-9 pb-16"
+        className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pt-8 pb-16"
       >
         {/* Clean Centered Hero */}
-        <div className="text-center max-w-2xl mx-auto mb-7">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-semibold mb-3.5">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>
-              100% Original HD Quality · Zero Blur · AI Metadata Privacy Shield
-            </span>
+        <div className="text-center max-w-3xl mx-auto mb-7">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-semibold text-blue-700 mb-2.5">
+            <span>100% Original HD Quality</span>
+            <span aria-hidden="true">·</span>
+            <span>25–45 Mbps Video Booster</span>
+            <span aria-hidden="true">·</span>
+            <span>No &quot;Made with AI&quot; Tag Shield</span>
           </div>
-          <h1 className="font-display text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.12]">
-            Remove Gemini, Veo & Nanonets Watermarks Instantly
+          <h1 className="font-display text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.12] text-balance">
+            AI Watermark Remover, Video HD Booster & No-AI-Tag Studio
           </h1>
-          <p className="mt-3 text-sm sm:text-base text-slate-600">
-            Clean single photos, bulk image batches, or HD videos—while stripping hidden AI metadata and converting formats in one click.
+          <p className="mt-2.5 text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
+            Select any of our 5 dedicated tools below—clean watermarks, boost Reels video quality to 4K-look sharpness, or strip hidden AI tags so Instagram & YouTube never flag your uploads.
           </p>
         </div>
 
         {/* ============================================================
-            VISIBLE 3-MODE TOOL SELECTOR (So Users Immediately See All 3 Core Tools!)
+            ORGANIZED 5-TOOL STUDIO HUB GRID (Clear, Separate Cards for Each Task)
            ============================================================ */}
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex flex-wrap justify-center gap-1 p-1.5 rounded-2xl bg-slate-200/75 border border-slate-200">
+        <div className="mb-7">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            {/* Tool 1: Single Photo Watermark */}
             <button
               type="button"
               onClick={() => {
                 setMode('image');
                 setErrorMessage('');
               }}
-              className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-display font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                 mode === 'image'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                  : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200/90'
               }`}
             >
-              <ImageIcon className="w-4 h-4 text-blue-600" />
-              <span>Single Photo</span>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                    mode === 'image'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-blue-50 text-blue-600'
+                  }`}
+                >
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <span
+                  className={`text-[11px] font-mono font-bold ${
+                    mode === 'image' ? 'text-blue-300' : 'text-slate-400'
+                  }`}
+                >
+                  01
+                </span>
+              </div>
+              <div>
+                <div className="font-display font-bold text-xs sm:text-sm whitespace-nowrap truncate">
+                  Photo Watermark
+                </div>
+                <p
+                  className={`text-[11px] mt-0.5 truncate ${
+                    mode === 'image' ? 'text-slate-300' : 'text-slate-500'
+                  }`}
+                >
+                  Single Image Cleaner
+                </p>
+              </div>
             </button>
 
+            {/* Tool 2: Bulk 25x Photos */}
             <button
               type="button"
               onClick={() => {
                 setMode('bulk');
                 setErrorMessage('');
               }}
-              className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-display font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                 mode === 'bulk'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                  : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200/90'
               }`}
             >
-              <Layers className="w-4 h-4 text-indigo-600" />
-              <span>Bulk Photos (Up to 25)</span>
-              {bulkItems.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-md bg-indigo-600 text-white text-[10px] font-mono">
-                  {bulkItems.length}
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                    mode === 'bulk'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-indigo-50 text-indigo-600'
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                </div>
+                <span
+                  className={`text-[11px] font-mono font-bold ${
+                    mode === 'bulk' ? 'text-indigo-300' : 'text-slate-400'
+                  }`}
+                >
+                  {bulkItems.length > 0 ? `${bulkItems.length} Queued` : '02'}
                 </span>
-              )}
+              </div>
+              <div>
+                <div className="font-display font-bold text-xs sm:text-sm whitespace-nowrap truncate">
+                  Bulk 25× Photos
+                </div>
+                <p
+                  className={`text-[11px] mt-0.5 truncate ${
+                    mode === 'bulk' ? 'text-slate-300' : 'text-slate-500'
+                  }`}
+                >
+                  Batch Image Cleaner
+                </p>
+              </div>
             </button>
 
+            {/* Tool 3: HD Video Watermark Remover */}
             <button
               type="button"
               onClick={() => {
                 setMode('video');
                 setErrorMessage('');
               }}
-              className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-display font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                 mode === 'video'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                  : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200/90'
               }`}
             >
-              <Video className="w-4 h-4 text-emerald-600" />
-              <span>HD Video Remover</span>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                    mode === 'video'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-50 text-emerald-600'
+                  }`}
+                >
+                  <Video className="w-4 h-4" />
+                </div>
+                <span
+                  className={`text-[11px] font-mono font-bold ${
+                    mode === 'video' ? 'text-emerald-300' : 'text-slate-400'
+                  }`}
+                >
+                  03
+                </span>
+              </div>
+              <div>
+                <div className="font-display font-bold text-xs sm:text-sm whitespace-nowrap truncate">
+                  Video Watermark
+                </div>
+                <p
+                  className={`text-[11px] mt-0.5 truncate ${
+                    mode === 'video' ? 'text-slate-300' : 'text-slate-500'
+                  }`}
+                >
+                  1080p Flow & Veo
+                </p>
+              </div>
             </button>
 
+            {/* Tool 4: Video HD / 4K Booster */}
             <button
               type="button"
               onClick={() => {
                 setMode('enhance');
                 setErrorMessage('');
               }}
-              className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-display font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                 mode === 'enhance'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                  : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200/90'
               }`}
             >
-              <Zap className="w-4 h-4 text-violet-600" />
-              <span>Video HD Enhancer</span>
-              <span className="px-1.5 py-0.5 rounded-md bg-violet-600 text-white text-[10px] font-mono">
-                4K / Reels
-              </span>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                    mode === 'enhance'
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-violet-50 text-violet-600'
+                  }`}
+                >
+                  <Zap className="w-4 h-4" />
+                </div>
+                <span
+                  className={`text-[11px] font-mono font-bold ${
+                    mode === 'enhance' ? 'text-violet-300' : 'text-violet-600'
+                  }`}
+                >
+                  04 · 4K/Reels
+                </span>
+              </div>
+              <div>
+                <div className="font-display font-bold text-xs sm:text-sm whitespace-nowrap truncate">
+                  Video HD Booster
+                </div>
+                <p
+                  className={`text-[11px] mt-0.5 truncate ${
+                    mode === 'enhance' ? 'text-slate-300' : 'text-slate-500'
+                  }`}
+                >
+                  Boost Quality for Reels
+                </p>
+              </div>
+            </button>
+
+            {/* Tool 5: NEW No-AI-Tag Stealth Shield (Photo & Video) */}
+            <button
+              type="button"
+              onClick={() => {
+                setMode('aitag_shield');
+                setErrorMessage('');
+              }}
+              className={`col-span-2 sm:col-span-1 p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                mode === 'aitag_shield'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                  : 'bg-white hover:bg-slate-50 text-slate-900 border-slate-200/90'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                    mode === 'aitag_shield'
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-amber-50 text-amber-600'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <span
+                  className={`text-[11px] font-mono font-bold ${
+                    mode === 'aitag_shield' ? 'text-amber-300' : 'text-amber-600'
+                  }`}
+                >
+                  05 · No AI Tag
+                </span>
+              </div>
+              <div>
+                <div className="font-display font-bold text-xs sm:text-sm whitespace-nowrap truncate">
+                  No-AI-Tag Shield
+                </div>
+                <p
+                  className={`text-[11px] mt-0.5 truncate ${
+                    mode === 'aitag_shield' ? 'text-slate-300' : 'text-slate-500'
+                  }`}
+                >
+                  Bypass Insta/YT AI Tag
+                </p>
+              </div>
             </button>
           </div>
         </div>
@@ -1961,7 +2194,7 @@ export default function App() {
                       onClick={() => {
                         if (!isVideoProcessing) {
                           recordMonetizedAction(false);
-                          runVideoWatermarkRemoval(false);
+                          runVideoWatermarkRemoval('watermark');
                         }
                       }}
                       className={`w-full py-4 px-6 rounded-2xl font-display font-bold text-base flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md ${
@@ -2069,10 +2302,9 @@ export default function App() {
                   <div className="w-16 h-16 rounded-2xl bg-violet-50 border border-violet-100 text-violet-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform">
                     <Zap className="w-8 h-8" />
                   </div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-100 text-violet-800 text-xs font-bold mb-3">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Instagram Reels & YouTube Shorts Pro Quality Booster</span>
-                  </div>
+                  <p className="text-xs font-mono font-bold text-violet-700 mb-2">
+                    04. Instagram Reels & YouTube Shorts Quality Booster
+                  </p>
                   <h2 className="font-display font-bold text-xl sm:text-2xl text-slate-900">
                     Boost Any Video to Ultra-Sharp HD / 4K-Look Clarity
                   </h2>
@@ -2089,7 +2321,7 @@ export default function App() {
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
                   <div className="p-3.5 rounded-2xl bg-violet-50/60 border border-violet-100">
                     <div className="text-xs font-bold text-violet-950">
-                      1. 3×3 Optical Unsharp Mask
+                      01. 3×3 Optical Unsharp Mask
                     </div>
                     <p className="text-[11px] text-slate-600 mt-0.5">
                       GPU convolution filter sharpens fine textures, eyes, and edges to give a crisp 4K-like appearance.
@@ -2097,7 +2329,7 @@ export default function App() {
                   </div>
                   <div className="p-3.5 rounded-2xl bg-violet-50/60 border border-violet-100">
                     <div className="text-xs font-bold text-violet-950">
-                      2. Anti-Dull HDR Color Grading
+                      02. Anti-Dull HDR Color Grading
                     </div>
                     <p className="text-[11px] text-slate-600 mt-0.5">
                       Restores rich contrast and vibrant colors so Flow AI & Veo videos never look washed out.
@@ -2105,7 +2337,7 @@ export default function App() {
                   </div>
                   <div className="p-3.5 rounded-2xl bg-violet-50/60 border border-violet-100">
                     <div className="text-xs font-bold text-violet-950">
-                      3. 30–45 Mbps Reels Master
+                      03. 30–45 Mbps Reels Master
                     </div>
                     <p className="text-[11px] text-slate-600 mt-0.5">
                       Exports with 1-second keyframes and studio H.264 bitrate so Instagram doesn&apos;t crush your video.
@@ -2169,12 +2401,12 @@ export default function App() {
                   />
                   <div className="absolute top-4 left-4 pointer-events-none flex flex-wrap gap-2">
                     {cleanVideoOutput ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-600 text-white text-xs font-bold shadow-sm">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-violet-600 text-white text-xs font-bold shadow-sm">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Enhanced Master Ready ({cleanVideoOutput.outWidth || vidDimensions.width}×{cleanVideoOutput.outHeight || vidDimensions.height}p · {cleanVideoOutput.bitrateMbps || '32'} Mbps)
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-600/95 text-white text-xs font-bold shadow-sm">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-violet-600/95 text-white text-xs font-bold shadow-sm">
                         <Sparkles className="w-3.5 h-3.5" />
                         {previewOriginalInEnhancer
                           ? 'Original Video (Unenhanced)'
@@ -2203,7 +2435,7 @@ export default function App() {
                   <div className="space-y-4 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/90">
                     <div>
                       <label className="block text-xs font-bold text-slate-900 mb-2">
-                        1. Select Quality Enhancement Mode:
+                        01. Select Quality Enhancement Mode:
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         {(
@@ -2255,7 +2487,7 @@ export default function App() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/80">
                       <div>
                         <label className="block text-xs font-bold text-slate-900 mb-1.5">
-                          2. Target Output Resolution:
+                          02. Target Output Resolution:
                         </label>
                         <div className="grid grid-cols-3 gap-1.5">
                           {(
@@ -2315,7 +2547,7 @@ export default function App() {
                       onClick={() => {
                         if (!isVideoProcessing) {
                           recordMonetizedAction(false);
-                          runVideoWatermarkRemoval(true);
+                          runVideoWatermarkRemoval('enhance');
                         }
                       }}
                       className={`w-full py-4 px-6 rounded-2xl font-display font-bold text-base flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md ${
@@ -2393,6 +2625,396 @@ export default function App() {
                     >
                       <Download className="w-4 h-4" />
                       <span>Download Enhanced HD Video</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================
+            MODE 5: DEDICATED NO-AI-TAG STEALTH SHIELD (PHOTO & VIDEO — BYPASS INSTA/YT AI TAG)
+           ============================================================ */}
+        {mode === 'aitag_shield' && (
+          <div className="bg-white rounded-3xl border border-amber-200/90 shadow-lg shadow-amber-900/[0.04] overflow-hidden">
+            {!imageFile && !videoFile ? (
+              <div className="p-6 sm:p-10">
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleFileSelect(e.dataTransfer.files);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-amber-300 hover:border-amber-500 hover:bg-amber-50/30 rounded-2xl p-10 sm:p-14 text-center cursor-pointer transition-all group"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform">
+                    <ShieldCheck className="w-8 h-8" />
+                  </div>
+                  <p className="text-xs font-mono font-bold text-amber-700 mb-2">
+                    05. Instagram, YouTube & TikTok &quot;Made with AI&quot; Tag Bypass
+                  </p>
+                  <h2 className="font-display font-bold text-xl sm:text-2xl text-slate-900">
+                    Upload Any AI Photo or Video to Strip Hidden AI Detection Tags
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1.5 max-w-lg mx-auto">
+                    Keeps 100% exact visual quality while scrubbing C2PA manifests, EXIF/XMP tags, MP4 provenance boxes, and invisible SynthID frequency signatures.
+                  </p>
+                  <div className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-amber-600 group-hover:bg-amber-700 text-white font-display font-bold text-sm shadow-sm transition-colors">
+                    <Upload className="w-4 h-4" />
+                    <span>Select Photo or Video</span>
+                  </div>
+                </div>
+
+                {/* 4-Layer Stealth Scrubbing Breakdown */}
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-left">
+                  <div className="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-200/70">
+                    <div className="text-xs font-bold text-slate-900">
+                      01. C2PA & JUMBF Wipe
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Strips cryptographic Content Credentials embedded by Gemini, OpenAI, and Adobe.
+                    </p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-200/70">
+                    <div className="text-xs font-bold text-slate-900">
+                      02. MP4 & EXIF Atom Purge
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Re-muxes a brand-new container so MP4 uuid/udta and IPTC AI tags are 100% gone.
+                    </p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-200/70">
+                    <div className="text-xs font-bold text-slate-900">
+                      03. SynthID Phase Neutralizer
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Applies an imperceptible 0.12px sub-pixel phase shift to break frequency-domain AI grids.
+                    </p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-200/70">
+                    <div className="text-xs font-bold text-slate-900">
+                      04. Exact Visual Quality
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Adds ±1 LSB natural camera sensor PRNU dither with 0% blur and 100% original resolution.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : imageFile ? (
+              /* PHOTO LOADED IN NO-AI-TAG SHIELD */
+              <div className="p-6 sm:p-8 space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {imageFile.name}
+                      </p>
+                      <p className="text-xs text-slate-500 tabular-nums">
+                        Photo · {imgDimensions.width} × {imgDimensions.height} px · 100% Exact Quality Preserved
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                    >
+                      Change File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-500 transition-colors cursor-pointer"
+                      title="Remove file"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Image Preview */}
+                <div className="relative rounded-2xl bg-slate-950/5 border border-slate-200/80 p-3 flex items-center justify-center min-h-[280px] max-h-[480px] overflow-hidden">
+                  <img
+                    src={cleanImageOutput ? cleanImageOutput.url : sourcePreviewUrl}
+                    alt="AI Shield Preview"
+                    className="max-w-full max-h-[440px] w-auto h-auto object-contain rounded-xl shadow-xs"
+                  />
+                  <div className="absolute top-5 left-5">
+                    {cleanImageOutput ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow-sm">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        C2PA, EXIF & SynthID Scrubbed · Ready for Instagram/YT
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900/80 text-white text-xs font-semibold">
+                        Original Photo Loaded for AI Tag Scrubbing
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Options inside No-AI-Tag Shield for Photo */}
+                {!cleanImageOutput && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-xs">
+                    <label className="inline-flex items-center gap-2.5 cursor-pointer select-none font-bold text-slate-900">
+                      <input
+                        type="checkbox"
+                        checked={alsoRemoveWmInAiShield}
+                        onChange={(e) => setAlsoRemoveWmInAiShield(e.target.checked)}
+                        className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                      />
+                      <span>
+                        Also Remove Corner Visual Watermark (Uncheck to keep 100% original pixels & ONLY remove hidden AI tag)
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {!cleanImageOutput ? (
+                  <a
+                    href={processAdUrl}
+                    target={processAdUrl ? '_blank' : undefined}
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      if (!isImageProcessing) {
+                        recordMonetizedAction(false);
+                        runImageWatermarkRemoval(
+                          imgTuner,
+                          exportMime,
+                          1,
+                          alsoRemoveWmInAiShield
+                        );
+                      }
+                    }}
+                    className={`w-full py-4 px-6 rounded-2xl font-display font-bold text-base flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md ${
+                      isImageProcessing
+                        ? 'bg-slate-400 text-white pointer-events-none'
+                        : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
+                    }`}
+                  >
+                    {isImageProcessing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Scrubbing Hidden AI Tag & SynthID...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-5 h-5" />
+                        <span>
+                          Remove Hidden &quot;Made with AI&quot; Tag (Keep 100% Exact Quality)
+                        </span>
+                      </>
+                    )}
+                  </a>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-3 text-center sm:text-left">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mx-auto sm:mx-0">
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-display font-bold text-base text-slate-900">
+                          Hidden AI Tags & C2PA Completely Removed!
+                        </h3>
+                        <p className="text-xs text-slate-600">
+                          {cleanImageOutput.formatLabel} ({cleanImageOutput.sizeKb} KB) ·{' '}
+                          {cleanImageOutput.outWidth}×{cleanImageOutput.outHeight}px · Ready for Instagram & YouTube
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        initiateFileDownload({
+                          url: cleanImageOutput.url,
+                          fileName: cleanImageOutput.fileName,
+                          label: cleanImageOutput.fileName,
+                          subLabel: `AI-Tag-Free ${cleanImageOutput.formatLabel} · ${cleanImageOutput.outWidth}×${cleanImageOutput.outHeight}px`,
+                        })
+                      }
+                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-display font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download AI-Tag-Free Photo</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* VIDEO LOADED IN NO-AI-TAG SHIELD */
+              <div className="p-6 sm:p-8 space-y-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+                      <ShieldCheck className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {videoFile?.name}
+                      </p>
+                      <p className="text-xs text-slate-500 tabular-nums">
+                        Video · {vidDimensions.width} × {vidDimensions.height} px
+                        {vidDuration > 0 ? ` · ${vidDuration.toFixed(1)}s` : ''} · 100% Exact Quality & Audio Preserved
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isVideoProcessing}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                    >
+                      Change File
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isVideoProcessing}
+                      onClick={handleReset}
+                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-500 transition-colors cursor-pointer"
+                      title="Remove file"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Video Player */}
+                <div className="relative rounded-2xl bg-slate-950 overflow-hidden">
+                  <video
+                    key={cleanVideoOutput ? cleanVideoOutput.url : videoPreviewUrl}
+                    src={cleanVideoOutput ? cleanVideoOutput.url : videoPreviewUrl}
+                    controls
+                    className="w-full max-h-[420px] mx-auto block"
+                  />
+                  <div className="absolute top-4 left-4 pointer-events-none">
+                    {cleanVideoOutput ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow-sm">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        MP4 C2PA & SynthID Scrubbed ({cleanVideoOutput.bitrateMbps || '28'} Mbps Exact Quality)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900/80 text-white text-xs font-semibold">
+                        Original Video Loaded for AI Tag Scrubbing
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Options inside No-AI-Tag Shield for Video */}
+                {!cleanVideoOutput && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-xs">
+                    <label className="inline-flex items-center gap-2.5 cursor-pointer select-none font-bold text-slate-900">
+                      <input
+                        type="checkbox"
+                        checked={alsoRemoveWmInAiShield}
+                        onChange={(e) => setAlsoRemoveWmInAiShield(e.target.checked)}
+                        className="w-4 h-4 accent-amber-600 rounded cursor-pointer"
+                      />
+                      <span>
+                        Also Remove Corner Visual Watermark (Uncheck to keep 100% original video frames & ONLY strip hidden AI tags)
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {!cleanVideoOutput ? (
+                  <div className="space-y-4">
+                    <a
+                      href={processAdUrl}
+                      target={processAdUrl ? '_blank' : undefined}
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        if (!isVideoProcessing) {
+                          recordMonetizedAction(false);
+                          runVideoWatermarkRemoval('aitag_shield');
+                        }
+                      }}
+                      className={`w-full py-4 px-6 rounded-2xl font-display font-bold text-base flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md ${
+                        isVideoProcessing
+                          ? 'bg-slate-800 text-white pointer-events-none'
+                          : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
+                      }`}
+                    >
+                      {isVideoProcessing ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>
+                            {vidProgress.stage || 'Scrubbing Video AI Tags...'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="w-5 h-5" />
+                          <span>
+                            Remove Hidden &quot;Made with AI&quot; Tag from Video Now
+                          </span>
+                        </>
+                      )}
+                    </a>
+
+                    {isVideoProcessing && (
+                      <div className="space-y-1.5">
+                        <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            style={{
+                              width: `${Math.max(
+                                4,
+                                Math.round(vidProgress.progress * 100)
+                              )}%`,
+                            }}
+                            className="h-full bg-amber-600 transition-all duration-200"
+                          />
+                        </div>
+                        <p className="text-center text-xs font-mono text-slate-500">
+                          {Math.round(vidProgress.progress * 100)}% completed — stripping MP4 C2PA boxes & keeping 100% original HD quality
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-3 text-center sm:text-left">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 mx-auto sm:mx-0">
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-display font-bold text-base text-slate-900">
+                          AI-Tag-Free Video Ready for Instagram & YouTube!
+                        </h3>
+                        <p className="text-xs text-slate-600">
+                          MP4 ({cleanVideoOutput.sizeMb} MB) ·{' '}
+                          {cleanVideoOutput.outWidth || vidDimensions.width}×
+                          {cleanVideoOutput.outHeight || vidDimensions.height}px ·{' '}
+                          {cleanVideoOutput.bitrateMbps || '28'} Mbps Exact Quality · Audio Intact
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        initiateFileDownload({
+                          url: cleanVideoOutput.url,
+                          fileName: cleanVideoOutput.fileName,
+                          label: cleanVideoOutput.fileName,
+                          subLabel: `AI-Tag-Free MP4 (${cleanVideoOutput.sizeMb} MB) · ${cleanVideoOutput.outWidth || vidDimensions.width}×${cleanVideoOutput.outHeight || vidDimensions.height}px`,
+                        })
+                      }
+                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-display font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download AI-Tag-Free Video</span>
                     </button>
                   </div>
                 )}

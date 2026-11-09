@@ -41,17 +41,16 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
         id="all-features"
         className="py-16 bg-white border-t border-slate-200/80"
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5" />
-              All-In-One AI Media Toolkit
-            </span>
-            <h2 className="mt-3 font-display text-2xl sm:text-3xl font-extrabold text-slate-900">
+            <p className="text-xs font-semibold text-blue-600 tracking-wide">
+              All-In-One Studio Media Suite · 100% Browser Private
+            </p>
+            <h2 className="mt-2 font-display text-2xl sm:text-3xl font-extrabold text-slate-900">
               Everything KlearPix Can Do For You
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Click any feature card below to launch that tool directly in the workspace above.
+              Click any tool card below to launch that workspace directly at the top of the page.
             </p>
           </div>
 
@@ -62,9 +61,9 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
                 <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-4 shadow-xs">
                   <ImageIcon className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-blue-600">
-                  01 · Zero Blur Photo Cleaner
-                </span>
+                <p className="text-xs font-mono font-bold text-blue-600">
+                  01. Single Photo Cleaner
+                </p>
                 <h3 className="mt-1 font-display font-bold text-base text-slate-900">
                   100% Lossless Image Watermark Remover
                 </h3>
@@ -75,7 +74,7 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
               <button
                 type="button"
                 onClick={() => onTriggerAction?.('sample_image')}
-                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
+                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 cursor-pointer whitespace-nowrap"
               >
                 <span>Test with a Sample Photo</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -88,9 +87,9 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
                 <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center mb-4 shadow-xs">
                   <Layers className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-indigo-600">
-                  02 · Batch Processing
-                </span>
+                <p className="text-xs font-mono font-bold text-indigo-600">
+                  02. Batch Processing
+                </p>
                 <h3 className="mt-1 font-display font-bold text-base text-slate-900">
                   Bulk Clean Up to 25 Photos at Once
                 </h3>
@@ -101,7 +100,7 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
               <button
                 type="button"
                 onClick={() => onTriggerAction?.('bulk_demo')}
-                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer whitespace-nowrap"
               >
                 <span>Try Bulk Mode with 3 Demo Photos</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -114,9 +113,9 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
                 <div className="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-4 shadow-xs">
                   <Video className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-emerald-600">
-                  03 · Veo 3 & Google Flow (25+ Mbps)
-                </span>
+                <p className="text-xs font-mono font-bold text-emerald-600">
+                  03. Veo 3 & Google Flow (25+ Mbps)
+                </p>
                 <h3 className="mt-1 font-display font-bold text-base text-slate-900">
                   Lossless 1080p Video Watermark Remover
                 </h3>
@@ -127,74 +126,74 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectTab('video')}
-                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer"
+                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-800 cursor-pointer whitespace-nowrap"
               >
                 <span>Open HD Video Remover</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Feature 4: NEW Video HD / 4K-Style Enhancer (Instagram Reels Booster) */}
-            <div className="rounded-2xl bg-gradient-to-br from-violet-50/80 to-fuchsia-50/60 hover:from-violet-100/70 hover:to-fuchsia-100/60 border border-violet-200/90 hover:border-violet-400 p-6 flex flex-col justify-between transition-all">
+            {/* Feature 4: Video HD / 4K-Style Enhancer (Instagram Reels Booster) */}
+            <div className="rounded-2xl bg-slate-50 hover:bg-violet-50/50 border border-slate-200/90 hover:border-violet-300 p-6 flex flex-col justify-between transition-all">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-violet-600 text-white flex items-center justify-center mb-4 shadow-xs">
                   <Zap className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-violet-700">
-                  04 · New · Instagram Reels Booster
-                </span>
+                <p className="text-xs font-mono font-bold text-violet-700">
+                  04. Instagram Reels & Shorts Booster
+                </p>
                 <h3 className="mt-1 font-display font-bold text-base text-slate-900">
                   Video HD & 4K-Look Quality Enhancer
                 </h3>
                 <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                  Boosts dull or soft videos into ultra-crisp 1080p / 2K 1440p quality using GPU 3×3 optical sharpening, HDR color mastering, and 30+ Mbps studio encoding for Instagram Reels.
+                  Boosts dull or soft videos into ultra-crisp 1080p / 2K 1440p quality using GPU 3×3 optical sharpening, HDR color mastering, and 30+ Mbps studio encoding.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => onSelectTab('enhance')}
-                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 hover:text-violet-900 cursor-pointer"
+                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 hover:text-violet-900 cursor-pointer whitespace-nowrap"
               >
                 <span>Open Video Quality Enhancer</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Feature 5: AI Metadata & C2PA Privacy Shield */}
-            <div className="rounded-2xl bg-slate-50 hover:bg-emerald-50/40 border border-slate-200/90 hover:border-emerald-300 p-6 flex flex-col justify-between transition-all">
+            {/* Feature 5: Dedicated No-AI-Tag Stealth Shield (Photo & Video) */}
+            <div className="rounded-2xl bg-slate-50 hover:bg-amber-50/50 border border-slate-200/90 hover:border-amber-300 p-6 flex flex-col justify-between transition-all">
               <div>
-                <div className="w-11 h-11 rounded-xl bg-emerald-700 text-white flex items-center justify-center mb-4 shadow-xs">
+                <div className="w-11 h-11 rounded-xl bg-amber-600 text-white flex items-center justify-center mb-4 shadow-xs">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-emerald-700">
-                  05 · Creator Privacy Shield
-                </span>
+                <p className="text-xs font-mono font-bold text-amber-700">
+                  05. Instagram & YouTube AI Tag Remover
+                </p>
                 <h3 className="mt-1 font-display font-bold text-base text-slate-900">
-                  Hidden AI Metadata (EXIF / C2PA) Cleaner
+                  No-AI-Tag Stealth Shield (Photo & Video)
                 </h3>
                 <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                  Automatically strips hidden EXIF, XMP, and C2PA metadata headers from your exported image so social platforms don&apos;t auto-flag your file.
+                  Strips C2PA, EXIF, XMP, MP4 container atoms, and SynthID frequency carriers while keeping 100% exact visual quality—so social platforms don&apos;t attach &quot;Made with AI&quot; labels.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => onSelectTab('image')}
-                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                onClick={() => onSelectTab('aitag_shield')}
+                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 hover:text-amber-900 cursor-pointer whitespace-nowrap"
               >
-                <span>Enabled by Default on All Exports</span>
-                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Open No-AI-Tag Stealth Shield</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {/* Feature 6: Format & 1.5x HD Upscale + Ctrl+V Paste */}
             <div className="rounded-2xl bg-slate-50 hover:bg-blue-50/40 border border-slate-200/90 hover:border-blue-300 p-6 flex flex-col justify-between transition-all">
               <div>
-                <div className="w-11 h-11 rounded-xl bg-blue-700 text-white flex items-center justify-center mb-4 shadow-xs">
+                <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center mb-4 shadow-xs">
                   <FileSpreadsheet className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-blue-700">
-                  06 · Studio Converter & Ctrl+V Paste
-                </span>
+                <p className="text-xs font-mono font-bold text-slate-700">
+                  06. Studio Converter & Ctrl+V Paste
+                </p>
                 <h3 className="mt-1 font-display font-bold text-base text-slate-900">
                   PNG, WebP & JPG + 1.5× HD Upscaler
                 </h3>
@@ -205,7 +204,7 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
               <button
                 type="button"
                 onClick={() => onTriggerAction?.('sample_image')}
-                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900 cursor-pointer"
+                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-slate-900 hover:text-blue-600 cursor-pointer whitespace-nowrap"
               >
                 <span>Try Format & HD Converter</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
@@ -282,11 +281,11 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
         id="supported-models"
         className="py-16 bg-white border-t border-slate-200/80"
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-600">
-              Universal AI Support
-            </span>
+            <p className="text-xs font-semibold text-emerald-600 tracking-wide">
+              Universal AI Compatibility · Zero Quality Loss
+            </p>
             <h2 className="mt-2 font-display text-2xl sm:text-3xl font-extrabold text-slate-900">
               Built for Gemini, Veo 3, Flow & Nanonets
             </h2>
@@ -299,10 +298,9 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
             {/* Image Card */}
             <div className="bg-slate-50 rounded-3xl border border-slate-200/90 p-7 flex flex-col justify-between">
               <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100/80 text-blue-700 text-xs font-bold mb-4">
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span>AI Photos & Bulk Images</span>
-                </div>
+                <p className="text-xs font-mono font-bold text-blue-600 mb-2">
+                  AI Photos & Bulk Images
+                </p>
                 <h3 className="font-display font-bold text-xl text-slate-900 mb-2">
                   Gemini, Imagen 3, Nano Banana & Nanonets Images
                 </h3>
@@ -323,7 +321,7 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectTab('image')}
-                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-display font-bold text-xs transition-colors cursor-pointer"
+                className="w-full py-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-display font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
               >
                 Open Image Watermark Remover
               </button>
@@ -332,31 +330,30 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
             {/* Video Card */}
             <div className="bg-slate-50 rounded-3xl border border-slate-200/90 p-7 flex flex-col justify-between">
               <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100/80 text-emerald-700 text-xs font-bold mb-4">
-                  <Video className="w-3.5 h-3.5" />
-                  <span>AI Videos & Clips</span>
-                </div>
+                <p className="text-xs font-mono font-bold text-emerald-600 mb-2">
+                  AI Videos, Reels & Shorts
+                </p>
                 <h3 className="font-display font-bold text-xl text-slate-900 mb-2">
                   Gemini Omni, Google Flow, Veo 3 & Nanonets Videos
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed mb-5">
-                  Cleans every video frame in your browser while keeping the original frame rate, HD resolution, and full audio track intact.
+                  Cleans every video frame in your browser while keeping the original frame rate, 25–45 Mbps HD resolution, and full audio track intact.
                 </p>
                 <ul className="space-y-2 text-xs text-slate-700 font-medium mb-6">
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Supports MP4, WebM, and MOV video files</span>
+                    <span>Supports MP4, WebM, and MOV video files up to 1440p 2K</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Original audio stream is preserved without quality loss</span>
+                    <span>Scrubs MP4 C2PA atoms & boosts clarity for Instagram Reels</span>
                   </li>
                 </ul>
               </div>
               <button
                 type="button"
                 onClick={() => onSelectTab('video')}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-display font-bold text-xs transition-colors cursor-pointer"
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-display font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
               >
                 Open Video Watermark Remover
               </button>
@@ -378,15 +375,10 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4 text-xs font-semibold text-emerald-700">
-              <span className="inline-flex items-center gap-1">
-                <ShieldCheck className="w-4 h-4" />
-                Verified File Security
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Zap className="w-4 h-4" />
-                Instant Local Speed
-              </span>
+            <div className="flex items-center gap-3 text-xs font-semibold text-emerald-700">
+              <span>Verified File Security</span>
+              <span aria-hidden="true">·</span>
+              <span>Instant Local Speed</span>
             </div>
           </div>
         </div>
@@ -402,27 +394,27 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
               Frequently Asked Questions
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              Everything you need to know about removing AI watermarks without losing quality.
+              Everything you need to know about removing AI watermarks, boosting video quality, and preventing AI tags.
             </p>
           </div>
 
           <div className="space-y-3">
             {[
               {
+                q: 'How does the No-AI-Tag Stealth Shield prevent Instagram & YouTube "Made with AI" tags?',
+                a: 'Social platforms detect AI media by reading hidden C2PA/JUMBF manifests, EXIF/XMP tags, MP4 uuid/udta boxes, and invisible SynthID frequency-domain patterns. Our No-AI-Tag Stealth Shield re-muxes a brand-new container from scratch and applies an imperceptible sub-pixel CMOS sensor PRNU dither—removing all AI signatures while keeping 100% exact visual quality.',
+              },
+              {
                 q: 'Will my photo or video lose quality after removing the watermark?',
-                a: 'No. KlearPix keeps 100% of your original resolution, sharpness, and video audio. Only the semi-transparent watermark pixels in the corner are mathematically restored.',
+                a: 'No. KlearPix keeps 100% of your original resolution, sharpness, and video audio. Videos are encoded at 25 to 45 Mbps Studio H.264 bitrate so they never look dull on Instagram Reels.',
               },
               {
-                q: 'How can I clean multiple photos at once (Bulk Mode)?',
-                a: 'Simply click the "Bulk Photos (Up to 25)" tab at the top of the page, select multiple images together, and click "Remove Watermark from All".',
+                q: 'How can I boost a low-quality video to HD / 4K-like clarity for Instagram Reels?',
+                a: 'Select Tool 04 ("Video HD / 4K Booster") at the top of the page, upload your video, choose "Instagram Reels Ultra HD" or "4K-Look Super Sharp", and export your enhanced MP4.',
               },
               {
-                q: 'What does the AI Metadata (EXIF / C2PA) Shield do?',
-                a: 'AI generators often embed hidden tags inside image files showing they were generated by AI. Our Metadata Shield re-encodes a fresh pixel stream so all hidden EXIF/C2PA tags are completely removed.',
-              },
-              {
-                q: 'Can I paste an image directly without downloading it first?',
-                a: 'Yes! Right-click any image, select "Copy Image", and press Ctrl+V (or Cmd+V on Mac) anywhere on KlearPix to load it immediately.',
+                q: 'Can I paste an image directly or clean 25 photos at once?',
+                a: 'Yes! Press Ctrl+V anywhere on the page to paste a copied image, or choose Tool 02 ("Bulk 25× Photos") to clean up to 25 images in one click.',
               },
             ].map((item, idx) => (
               <details
