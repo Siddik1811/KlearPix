@@ -10,7 +10,6 @@ import {
   Lock,
   X,
   Layers,
-  ClipboardPaste,
   FileSpreadsheet,
   ArrowUpRight,
 } from 'lucide-react';
@@ -116,13 +115,13 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
                   <Video className="w-5 h-5" />
                 </div>
                 <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-emerald-600">
-                  03 · Veo 3 & Google Flow
+                  03 · Veo 3 & Google Flow (25+ Mbps)
                 </span>
                 <h3 className="mt-1 font-display font-bold text-base text-slate-900">
-                  HD Video Watermark Remover (With Audio)
+                  Lossless 1080p Video Watermark Remover
                 </h3>
                 <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                  Cleans Gemini Omni, Google Flow, Veo 3, and Nanonets MP4/WebM videos frame-by-frame while keeping original HD resolution and audio intact.
+                  Cleans Gemini Omni, Google Flow, Veo 3, and Nanonets videos with our GPU corner-patch pipeline and 25–45 Mbps studio bitrate—zero dullness and original audio intact.
                 </p>
               </div>
               <button
@@ -135,28 +134,28 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
               </button>
             </div>
 
-            {/* Feature 4: Direct Paste (Ctrl+V) & URL Loader */}
-            <div className="rounded-2xl bg-slate-50 hover:bg-blue-50/40 border border-slate-200/90 hover:border-blue-300 p-6 flex flex-col justify-between transition-all">
+            {/* Feature 4: NEW Video HD / 4K-Style Enhancer (Instagram Reels Booster) */}
+            <div className="rounded-2xl bg-gradient-to-br from-violet-50/80 to-fuchsia-50/60 hover:from-violet-100/70 hover:to-fuchsia-100/60 border border-violet-200/90 hover:border-violet-400 p-6 flex flex-col justify-between transition-all">
               <div>
-                <div className="w-11 h-11 rounded-xl bg-slate-900 text-white flex items-center justify-center mb-4 shadow-xs">
-                  <ClipboardPaste className="w-5 h-5" />
+                <div className="w-11 h-11 rounded-xl bg-violet-600 text-white flex items-center justify-center mb-4 shadow-xs">
+                  <Zap className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-slate-700">
-                  04 · Instant Workflow
+                <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-violet-700">
+                  04 · New · Instagram Reels Booster
                 </span>
                 <h3 className="mt-1 font-display font-bold text-base text-slate-900">
-                  Direct Paste (Ctrl+V) & Image URL Import
+                  Video HD & 4K-Look Quality Enhancer
                 </h3>
                 <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                  No need to save files to your device first. Copy any image from Gemini or the web and press <code className="font-mono font-bold">Ctrl+V</code>, or paste a direct image link.
+                  Boosts dull or soft videos into ultra-crisp 1080p / 2K 1440p quality using GPU 3×3 optical sharpening, HDR color mastering, and 30+ Mbps studio encoding for Instagram Reels.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => onTriggerAction?.('url')}
-                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-slate-900 hover:text-blue-600 cursor-pointer"
+                onClick={() => onSelectTab('enhance')}
+                className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-violet-700 hover:text-violet-900 cursor-pointer"
               >
-                <span>Paste an Image Link Now</span>
+                <span>Open Video Quality Enhancer</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -187,20 +186,20 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
               </button>
             </div>
 
-            {/* Feature 6: Format & 1.5x HD Upscale Converter */}
+            {/* Feature 6: Format & 1.5x HD Upscale + Ctrl+V Paste */}
             <div className="rounded-2xl bg-slate-50 hover:bg-blue-50/40 border border-slate-200/90 hover:border-blue-300 p-6 flex flex-col justify-between transition-all">
               <div>
                 <div className="w-11 h-11 rounded-xl bg-blue-700 text-white flex items-center justify-center mb-4 shadow-xs">
                   <FileSpreadsheet className="w-5 h-5" />
                 </div>
                 <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-blue-700">
-                  06 · Studio Converter
+                  06 · Studio Converter & Ctrl+V Paste
                 </span>
                 <h3 className="mt-1 font-display font-bold text-base text-slate-900">
                   PNG, WebP & JPG + 1.5× HD Upscaler
                 </h3>
                 <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                  Convert your cleaned image into lossless PNG, fast WebP, or compact JPG—and optionally upscale resolution by 1.5× in a single click.
+                  Paste images directly with <code className="font-mono font-bold">Ctrl+V</code>, convert into lossless PNG, fast WebP, or compact JPG—and upscale resolution by 1.5× in a single click.
                 </p>
               </div>
               <button
