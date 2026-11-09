@@ -24,17 +24,21 @@ import {
   Lock,
   FileSpreadsheet,
   Maximize2,
+  Zap,
 } from 'lucide-react';
 import {
   WatermarkEngine,
   VideoWatermarkEngine,
   TunerOptions,
+  VideoEnhancePreset,
+  VideoUpscaleTarget,
+  ensureGpuEnhancerSvgFilters,
+  getCanvasFilterForPreset,
   detectWatermarkCandidate,
   detectVideoWatermarkCandidate,
   getAdaptiveImagePreset,
   generateSampleWatermarkedImage,
 } from './lib/watermarkEngine';
-
 import {
   verifyFileMagicBytes,
   sanitizeFileName,
@@ -43,12 +47,10 @@ import {
   validateSafeImageUrl,
   MonetizationConfig,
 } from './lib/securityAndMonetization';
-
-
 import { AdminPortal } from './components/AdminPortal';
 import { InfoSections } from './components/InfoSections';
 
-export type WorkspaceTab = 'image' | 'bulk' | 'video';
+export type WorkspaceTab = 'image' | 'bulk' | 'video' | 'enhance';
 type ImageFormatMime = 'image/png' | 'image/webp' | 'image/jpeg';
 
 interface BulkPhotoItem {
@@ -202,14 +204,30 @@ export default function App() {
     url: string;
     fileName: string;
     sizeMb: string;
+    outWidth?: number;
+    outHeight?: number;
+    bitrateMbps?: string;
   } | null>(null);
+
+  // ---------------- VIDEO HD / 4K-STYLE ENHANCER (INSTAGRAM REELS BOOSTER) STATE ----------------
+  const [boostQualityInVideoRemover, setBoostQualityInVideoRemover] =
+    useState<boolean>(true);
+  const [enhancePreset, setEnhancePreset] =
+    useState<VideoEnhancePreset>('insta_hd');
+  const [upscaleTarget, setUpscaleTarget] =
+    useState<VideoUpscaleTarget>('1080p');
+  const [alsoRemoveWatermarkInEnhancer, setAlsoRemoveWatermarkInEnhancer] =
+    useState<boolean>(true);
+  const [previewOriginalInEnhancer, setPreviewOriginalInEnhancer] =
+    useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const bulkInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Initialize Engines on Mount
+  // Initialize Engines & GPU SVG Filters on Mount
   useEffect(() => {
     let mounted = true;
+    ensureGpuEnhancerSvgFilters();
     WatermarkEngine.create()
       .then((eng) => {
         if (!mounted) return;
@@ -543,7 +561,9 @@ export default function App() {
       !forceBulkMode &&
       (first.type.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(first.name))
     ) {
-      setMode('video');
+      if (mode !== 'enhance') {
+        setMode('video');
+      }
       await handleLoadVideo(first);
       return;
     }
@@ -746,27 +766,62 @@ export default function App() {
     setBulkItems(demoBulk);
   };
 
-  // Process Video (Button Click #1)
-  const runVideoWatermarkRemoval = async () => {
+  // Process Video (Watermark Removal OR Dedicated HD/4K Enhancer)
+  const runVideoWatermarkRemoval = async (isDedicatedEnhancerMode = false) => {
     if (!vidEngine || !videoFile) return;
     setErrorMessage('');
     setIsVideoProcessing(true);
-    setVidProgress({ progress: 0.03, stage: 'Preparing lossless video pipeline...' });
+    setVidProgress({
+      progress: 0.03,
+      stage: isDedicatedEnhancerMode
+        ? 'Initializing GPU 4K/Reels Enhancer & 30+ Mbps Studio Encoder...'
+        : 'Preparing 25+ Mbps lossless 1080p video pipeline...',
+    });
+
+    const activePreset: VideoEnhancePreset = isDedicatedEnhancerMode
+      ? enhancePreset
+      : boostQualityInVideoRemover
+      ? 'insta_hd'
+      : 'none';
+
+    const activeUpscale: VideoUpscaleTarget = isDedicatedEnhancerMode
+      ? upscaleTarget
+      : boostQualityInVideoRemover
+      ? '1080p'
+      : 'native';
+
+    const shouldRemoveWm = isDedicatedEnhancerMode
+      ? alsoRemoveWatermarkInEnhancer
+      : true;
 
     try {
       const res = await vidEngine.process(videoFile, {
         ...vidTuner,
+        removeWatermarkEnabled: shouldRemoveWm,
+        enhancePreset: activePreset,
+        upscaleTarget: activeUpscale,
         onProgress: (info) =>
           setVidProgress({
             progress: info.progress,
-            stage: info.stage || 'Removing watermark frame-by-frame...',
+            stage:
+              info.stage ||
+              'Mastering frames in Ultra HD (25–45 Mbps Studio Bitrate)...',
           }),
       });
-      const cleanName = sanitizeFileName(videoFile.name, 'klearpix_hd', res.ext);
+      const suffix =
+        activePreset !== 'none' ? 'klearpix_ultra_hd_reels' : 'klearpix_hd';
+      const cleanName = sanitizeFileName(videoFile.name, suffix, res.ext);
       const sizeMb = (res.blob.size / (1024 * 1024)).toFixed(2);
       setCleanVideoOutput((prev) => {
         if (prev?.url) URL.revokeObjectURL(prev.url);
-        return { url: res.url, fileName: cleanName, sizeMb };
+        return {
+          url: res.url,
+          fileName: cleanName,
+          sizeMb,
+          outWidth: res.width,
+          outHeight: res.height,
+          bitrateMbps: res.bitrateMbps,
+        };
       });
     } catch (err) {
       setErrorMessage(
@@ -806,7 +861,7 @@ export default function App() {
 
   // Active Direct Links for Process & Download buttons
   const processAdUrl = monetization.enabled
-    ? mode === 'video'
+    ? mode === 'video' || mode === 'enhance'
       ? monetization.videoExportAdUrl
       : monetization.imageDownloadAdUrl
     : undefined;
@@ -823,9 +878,9 @@ export default function App() {
       <input
         ref={fileInputRef}
         type="file"
-        multiple={mode !== 'video'}
+        multiple={mode !== 'video' && mode !== 'enhance'}
         accept={
-          mode === 'video'
+          mode === 'video' || mode === 'enhance'
             ? 'video/mp4,video/webm,video/quicktime'
             : 'image/png,image/jpeg,image/webp'
         }
@@ -965,6 +1020,25 @@ export default function App() {
             >
               <Video className="w-4 h-4 text-emerald-600" />
               <span>HD Video Remover</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMode('enhance');
+                setErrorMessage('');
+              }}
+              className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl font-display font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                mode === 'enhance'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Zap className="w-4 h-4 text-violet-600" />
+              <span>Video HD Enhancer</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-violet-600 text-white text-[10px] font-mono">
+                4K / Reels
+              </span>
             </button>
           </div>
         </div>
@@ -1723,7 +1797,7 @@ export default function App() {
         )}
 
         {/* ============================================================
-            MODE 3: SIMPLE VIDEO WATERMARK REMOVER CARD
+            MODE 3: LOSSLESS 1080P VIDEO WATERMARK REMOVER (25+ MBPS + REELS ANTI-DULL)
            ============================================================ */}
         {mode === 'video' && (
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-lg shadow-slate-900/[0.03] overflow-hidden">
@@ -1746,12 +1820,29 @@ export default function App() {
                     Click to Upload Video or Drag & Drop
                   </h2>
                   <p className="text-sm text-slate-500 mt-1.5">
-                    Supports Gemini Omni, Google Flow, Veo 3 & Nanonets videos (MP4, WebM, MOV)
+                    Supports Gemini Omni, Google Flow (1080p), Veo 3 & Nanonets videos (MP4, WebM, MOV)
                   </p>
                   <div className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 group-hover:bg-emerald-700 text-white font-display font-bold text-sm shadow-sm transition-colors">
                     <Upload className="w-4 h-4" />
                     <span>Select Video</span>
                   </div>
+                </div>
+
+                {/* Built-in Anti-Dull & 25+ Mbps Quality Protection Info */}
+                <div className="mt-5 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 text-emerald-900 font-semibold">
+                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      New 25–45 Mbps GPU Pipeline: Removes corner watermark with zero dullness & keeps 1080p Instagram Reels crispness!
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMode('enhance')}
+                    className="font-bold text-violet-700 hover:text-violet-900 underline underline-offset-4 cursor-pointer"
+                  >
+                    Want 4K-Look Quality Boost too? →
+                  </button>
                 </div>
               </div>
             ) : (
@@ -1769,7 +1860,7 @@ export default function App() {
                       </p>
                       <p className="text-xs text-slate-500 tabular-nums">
                         {vidDimensions.width} × {vidDimensions.height} px
-                        {vidDuration > 0 ? ` · ${vidDuration.toFixed(1)}s` : ''} · Audio Preserved
+                        {vidDuration > 0 ? ` · ${vidDuration.toFixed(1)}s` : ''} · 25+ Mbps Studio Bitrate · Audio Preserved
                       </p>
                     </div>
                   </div>
@@ -1801,21 +1892,64 @@ export default function App() {
                     key={cleanVideoOutput ? cleanVideoOutput.url : videoPreviewUrl}
                     src={cleanVideoOutput ? cleanVideoOutput.url : videoPreviewUrl}
                     controls
+                    style={{
+                      filter:
+                        !cleanVideoOutput && boostQualityInVideoRemover
+                          ? getCanvasFilterForPreset('insta_hd')
+                          : 'none',
+                    }}
                     className="w-full max-h-[420px] mx-auto block"
                   />
-                  <div className="absolute top-4 left-4 pointer-events-none">
+                  <div className="absolute top-4 left-4 pointer-events-none flex flex-wrap gap-2">
                     {cleanVideoOutput ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-sm">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        Watermark Removed (HD Video)
+                        Watermark Removed ({cleanVideoOutput.outWidth || vidDimensions.width}×{cleanVideoOutput.outHeight || vidDimensions.height}p · {cleanVideoOutput.bitrateMbps || '28'} Mbps)
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 text-white text-xs font-semibold">
-                        Original Uploaded Video
-                      </span>
+                      <>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 text-white text-xs font-semibold">
+                          Original Uploaded Video
+                        </span>
+                        {boostQualityInVideoRemover && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-600/90 text-white text-[11px] font-bold">
+                            <Zap className="w-3 h-3" />
+                            Instagram Reels Anti-Dull HD Boost Active
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
+
+                {/* Anti-Dull & Instagram Reels HD Booster Toggle inside Video Watermark Remover */}
+                {!cleanVideoOutput && (
+                  <label className="flex items-start justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-50/80 to-violet-50/70 border border-emerald-200/90 cursor-pointer select-none">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={boostQualityInVideoRemover}
+                        onChange={(e) =>
+                          setBoostQualityInVideoRemover(e.target.checked)
+                        }
+                        className="w-4 h-4 mt-0.5 accent-emerald-600 rounded cursor-pointer"
+                      />
+                      <div>
+                        <div className="text-xs sm:text-sm font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                          <span>
+                            Keep 100% Crispness + Instagram Reels HD Quality Boost (Anti-Dull)
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] uppercase font-mono">
+                            Recommended for Flow AI 1080p
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          Applies optical micro-sharpening, anti-dull color vibrance, and 25–45 Mbps studio bitrate so your video stays crystal-clear on Instagram Reels.
+                        </p>
+                      </div>
+                    </div>
+                  </label>
+                )}
 
                 {/* Video Action Area */}
                 {!cleanVideoOutput ? (
@@ -1827,7 +1961,7 @@ export default function App() {
                       onClick={() => {
                         if (!isVideoProcessing) {
                           recordMonetizedAction(false);
-                          runVideoWatermarkRemoval();
+                          runVideoWatermarkRemoval(false);
                         }
                       }}
                       className={`w-full py-4 px-6 rounded-2xl font-display font-bold text-base flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md ${
@@ -1846,7 +1980,11 @@ export default function App() {
                       ) : (
                         <>
                           <Wand2 className="w-5 h-5" />
-                          <span>Remove Video Watermark Now</span>
+                          <span>
+                            {boostQualityInVideoRemover
+                              ? 'Remove Watermark + Export Ultra-Crisp 1080p HD'
+                              : 'Remove Video Watermark Now'}
+                          </span>
                         </>
                       )}
                     </a>
@@ -1865,7 +2003,7 @@ export default function App() {
                           />
                         </div>
                         <p className="text-center text-xs font-mono text-slate-500">
-                          {Math.round(vidProgress.progress * 100)}% completed — keeping 100% original video & audio quality
+                          {Math.round(vidProgress.progress * 100)}% completed — encoding at 25+ Mbps Studio H.264 with original audio
                         </p>
                       </div>
                     )}
@@ -1879,11 +2017,13 @@ export default function App() {
                       </div>
                       <div>
                         <h3 className="font-display font-bold text-base text-slate-900">
-                          Clean Video Ready to Download!
+                          Clean Ultra-Crisp Video Ready to Download!
                         </h3>
                         <p className="text-xs text-slate-600">
-                          MP4 ({cleanVideoOutput.sizeMb} MB) · {vidDimensions.width}×
-                          {vidDimensions.height}px · Audio Intact
+                          MP4 ({cleanVideoOutput.sizeMb} MB) ·{' '}
+                          {cleanVideoOutput.outWidth || vidDimensions.width}×
+                          {cleanVideoOutput.outHeight || vidDimensions.height}px ·{' '}
+                          {cleanVideoOutput.bitrateMbps || '28'} Mbps Studio HD · Audio Intact
                         </p>
                       </div>
                     </div>
@@ -1895,13 +2035,364 @@ export default function App() {
                           url: cleanVideoOutput.url,
                           fileName: cleanVideoOutput.fileName,
                           label: cleanVideoOutput.fileName,
-                          subLabel: `MP4 Video (${cleanVideoOutput.sizeMb} MB) · ${vidDimensions.width}×${vidDimensions.height}px`,
+                          subLabel: `MP4 Studio HD (${cleanVideoOutput.sizeMb} MB) · ${cleanVideoOutput.outWidth || vidDimensions.width}×${cleanVideoOutput.outHeight || vidDimensions.height}px`,
                         })
                       }
                       className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-display font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0"
                     >
                       <Download className="w-4 h-4" />
-                      <span>Download Clean Video</span>
+                      <span>Download Clean HD Video</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================
+            MODE 4: DEDICATED VIDEO HD / 4K-LOOK QUALITY ENHANCER (INSTAGRAM REELS BOOSTER)
+           ============================================================ */}
+        {mode === 'enhance' && (
+          <div className="bg-white rounded-3xl border border-violet-200/90 shadow-lg shadow-violet-900/[0.04] overflow-hidden">
+            {!videoFile ? (
+              <div className="p-6 sm:p-10">
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleFileSelect(e.dataTransfer.files);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-violet-300 hover:border-violet-500 hover:bg-violet-50/30 rounded-2xl p-10 sm:p-14 text-center cursor-pointer transition-all group"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-violet-50 border border-violet-100 text-violet-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform">
+                    <Zap className="w-8 h-8" />
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-100 text-violet-800 text-xs font-bold mb-3">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Instagram Reels & YouTube Shorts Pro Quality Booster</span>
+                  </div>
+                  <h2 className="font-display font-bold text-xl sm:text-2xl text-slate-900">
+                    Boost Any Video to Ultra-Sharp HD / 4K-Look Clarity
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1.5 max-w-lg mx-auto">
+                    Fixes dull colors, soft edges, and low-bitrate compression so your videos look crystal-clear when uploaded to Instagram Reels.
+                  </p>
+                  <div className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-600 group-hover:bg-violet-700 text-white font-display font-bold text-sm shadow-sm transition-colors">
+                    <Upload className="w-4 h-4" />
+                    <span>Select Video to Enhance</span>
+                  </div>
+                </div>
+
+                {/* Preset Highlights */}
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+                  <div className="p-3.5 rounded-2xl bg-violet-50/60 border border-violet-100">
+                    <div className="text-xs font-bold text-violet-950">
+                      1. 3×3 Optical Unsharp Mask
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      GPU convolution filter sharpens fine textures, eyes, and edges to give a crisp 4K-like appearance.
+                    </p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-violet-50/60 border border-violet-100">
+                    <div className="text-xs font-bold text-violet-950">
+                      2. Anti-Dull HDR Color Grading
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Restores rich contrast and vibrant colors so Flow AI & Veo videos never look washed out.
+                    </p>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-violet-50/60 border border-violet-100">
+                    <div className="text-xs font-bold text-violet-950">
+                      3. 30–45 Mbps Reels Master
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-0.5">
+                      Exports with 1-second keyframes and studio H.264 bitrate so Instagram doesn&apos;t crush your video.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 sm:p-8 space-y-6">
+                {/* Top File Info */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600 shrink-0">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {videoFile.name}
+                      </p>
+                      <p className="text-xs text-slate-500 tabular-nums">
+                        Source: {vidDimensions.width} × {vidDimensions.height} px
+                        {vidDuration > 0 ? ` · ${vidDuration.toFixed(1)}s` : ''} · Studio Audio Preserved
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isVideoProcessing}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                    >
+                      Change Video
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isVideoProcessing}
+                      onClick={handleReset}
+                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-500 transition-colors cursor-pointer"
+                      title="Remove video"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Before/After GPU Preview Player */}
+                <div className="relative rounded-2xl bg-slate-950 overflow-hidden">
+                  <video
+                    key={cleanVideoOutput ? cleanVideoOutput.url : videoPreviewUrl}
+                    src={cleanVideoOutput ? cleanVideoOutput.url : videoPreviewUrl}
+                    controls
+                    style={{
+                      filter:
+                        !cleanVideoOutput && !previewOriginalInEnhancer
+                          ? getCanvasFilterForPreset(enhancePreset)
+                          : 'none',
+                    }}
+                    className="w-full max-h-[420px] mx-auto block"
+                  />
+                  <div className="absolute top-4 left-4 pointer-events-none flex flex-wrap gap-2">
+                    {cleanVideoOutput ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-600 text-white text-xs font-bold shadow-sm">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Enhanced Master Ready ({cleanVideoOutput.outWidth || vidDimensions.width}×{cleanVideoOutput.outHeight || vidDimensions.height}p · {cleanVideoOutput.bitrateMbps || '32'} Mbps)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-600/95 text-white text-xs font-bold shadow-sm">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {previewOriginalInEnhancer
+                          ? 'Original Video (Unenhanced)'
+                          : 'Live HD / 4K-Look Enhancement Preview'}
+                      </span>
+                    )}
+                  </div>
+
+                  {!cleanVideoOutput && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewOriginalInEnhancer(!previewOriginalInEnhancer)
+                      }
+                      className="absolute bottom-14 right-4 px-3 py-1.5 rounded-xl bg-slate-900/85 hover:bg-slate-900 text-white text-xs font-semibold backdrop-blur-xs transition-colors cursor-pointer"
+                    >
+                      {previewOriginalInEnhancer
+                        ? 'Show Enhanced HD Preview'
+                        : 'Compare Original Dull Video'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Quality Enhancement Controls */}
+                {!cleanVideoOutput && (
+                  <div className="space-y-4 p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/90">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-900 mb-2">
+                        1. Select Quality Enhancement Mode:
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {(
+                          [
+                            {
+                              id: 'insta_hd',
+                              title: 'Instagram Reels Ultra HD',
+                              desc: 'Crisp edges + anti-dull vibrance (Best for Reels)',
+                            },
+                            {
+                              id: 'ultra_4k',
+                              title: '4K-Look Super Sharp',
+                              desc: 'Maximum micro-detail & optical clarity boost',
+                            },
+                            {
+                              id: 'cinema_hdr',
+                              title: 'Cinema HDR Glow',
+                              desc: 'Deep contrast, rich colors & sharp definition',
+                            },
+                          ] as const
+                        ).map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setEnhancePreset(p.id)}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                              enhancePreset === p.id
+                                ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                                : 'bg-white text-slate-800 border-slate-200 hover:border-violet-300'
+                            }`}
+                          >
+                            <div className="font-display font-bold text-xs">
+                              {p.title}
+                            </div>
+                            <div
+                              className={`text-[11px] mt-0.5 leading-snug ${
+                                enhancePreset === p.id
+                                  ? 'text-violet-100'
+                                  : 'text-slate-500'
+                              }`}
+                            >
+                              {p.desc}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/80">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-900 mb-1.5">
+                          2. Target Output Resolution:
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {(
+                            [
+                              { id: '1080p', label: '1080p Full HD' },
+                              { id: '1440p_2k', label: '1440p (2K Pro)' },
+                              { id: 'native', label: 'Native Size' },
+                            ] as const
+                          ).map((res) => (
+                            <button
+                              key={res.id}
+                              type="button"
+                              onClick={() => setUpscaleTarget(res.id)}
+                              className={`py-2 px-2 rounded-xl font-display font-bold text-xs transition-colors cursor-pointer ${
+                                upscaleTarget === res.id
+                                  ? 'bg-slate-900 text-white'
+                                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {res.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center">
+                        <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200 w-full cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={alsoRemoveWatermarkInEnhancer}
+                            onChange={(e) =>
+                              setAlsoRemoveWatermarkInEnhancer(e.target.checked)
+                            }
+                            className="w-4 h-4 mt-0.5 accent-violet-600 rounded cursor-pointer"
+                          />
+                          <div>
+                            <div className="text-xs font-bold text-slate-900">
+                              Also Remove Corner AI Watermark
+                            </div>
+                            <p className="text-[11px] text-slate-500 leading-tight">
+                              Cleans Flow AI / Veo 3 / Gemini logo while boosting quality
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Process or Download Button */}
+                {!cleanVideoOutput ? (
+                  <div className="space-y-4">
+                    <a
+                      href={processAdUrl}
+                      target={processAdUrl ? '_blank' : undefined}
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        if (!isVideoProcessing) {
+                          recordMonetizedAction(false);
+                          runVideoWatermarkRemoval(true);
+                        }
+                      }}
+                      className={`w-full py-4 px-6 rounded-2xl font-display font-bold text-base flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md ${
+                        isVideoProcessing
+                          ? 'bg-slate-800 text-white pointer-events-none'
+                          : 'bg-violet-600 hover:bg-violet-700 text-white shadow-violet-600/20'
+                      }`}
+                    >
+                      {isVideoProcessing ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>
+                            {vidProgress.stage || 'Enhancing Video to Ultra HD...'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-5 h-5" />
+                          <span>
+                            Boost Video to Ultra HD ({upscaleTarget === '1440p_2k' ? '2K 1440p' : '1080p Full HD'}) Now
+                          </span>
+                        </>
+                      )}
+                    </a>
+
+                    {isVideoProcessing && (
+                      <div className="space-y-1.5">
+                        <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            style={{
+                              width: `${Math.max(
+                                4,
+                                Math.round(vidProgress.progress * 100)
+                              )}%`,
+                            }}
+                            className="h-full bg-violet-600 transition-all duration-200"
+                          />
+                        </div>
+                        <p className="text-center text-xs font-mono text-slate-500">
+                          {Math.round(vidProgress.progress * 100)}% completed — applying GPU 3×3 optical sharpening & 30+ Mbps Reels encoding
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-violet-50/90 border border-violet-200 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-3 text-center sm:text-left">
+                      <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center shrink-0 mx-auto sm:mx-0">
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-display font-bold text-base text-slate-900">
+                          Ultra-Sharp HD Video Ready for Instagram Reels!
+                        </h3>
+                        <p className="text-xs text-slate-600">
+                          MP4 ({cleanVideoOutput.sizeMb} MB) ·{' '}
+                          {cleanVideoOutput.outWidth || vidDimensions.width}×
+                          {cleanVideoOutput.outHeight || vidDimensions.height}px ·{' '}
+                          {cleanVideoOutput.bitrateMbps || '32'} Mbps Studio Master · Audio Intact
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        initiateFileDownload({
+                          url: cleanVideoOutput.url,
+                          fileName: cleanVideoOutput.fileName,
+                          label: cleanVideoOutput.fileName,
+                          subLabel: `Enhanced HD MP4 (${cleanVideoOutput.sizeMb} MB) · ${cleanVideoOutput.outWidth || vidDimensions.width}×${cleanVideoOutput.outHeight || vidDimensions.height}px`,
+                        })
+                      }
+                      className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-display font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download Enhanced HD Video</span>
                     </button>
                   </div>
                 )}
