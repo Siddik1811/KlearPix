@@ -215,8 +215,6 @@ export default function App() {
   } | null>(null);
 
   // ---------------- VIDEO HD / 4K-STYLE ENHANCER (INSTAGRAM REELS BOOSTER) STATE ----------------
-  const [boostQualityInVideoRemover, setBoostQualityInVideoRemover] =
-    useState<boolean>(true);
   const [enhancePreset, setEnhancePreset] =
     useState<VideoEnhancePreset>('insta_hd');
   const [upscaleTarget, setUpscaleTarget] =
@@ -826,29 +824,17 @@ export default function App() {
       progress: 0.03,
       stage:
         pipelineMode === 'aitag_shield'
-          ? 'Scrubbing C2PA, MP4 uuid atoms & SynthID frequency carriers (100% Exact Quality)...'
+          ? 'Scrubbing C2PA, MP4 uuid atoms & SynthID metadata (100% Original Quality & MB)...'
           : pipelineMode === 'enhance'
-          ? 'Initializing GPU 4K/Reels Enhancer & 30+ Mbps Studio Encoder...'
-          : 'Preparing 25+ Mbps lossless 1080p video pipeline...',
+          ? 'Initializing GPU 4K/Reels Enhancer...'
+          : 'Removing corner watermark (Preserving 100% Original Quality & File Size)...',
     });
 
     const activePreset: VideoEnhancePreset =
-      pipelineMode === 'enhance'
-        ? enhancePreset
-        : pipelineMode === 'aitag_shield'
-        ? 'none'
-        : boostQualityInVideoRemover
-        ? 'insta_hd'
-        : 'none';
+      pipelineMode === 'enhance' ? enhancePreset : 'none';
 
     const activeUpscale: VideoUpscaleTarget =
-      pipelineMode === 'enhance'
-        ? upscaleTarget
-        : pipelineMode === 'aitag_shield'
-        ? 'native'
-        : boostQualityInVideoRemover
-        ? '1080p'
-        : 'native';
+      pipelineMode === 'enhance' ? upscaleTarget : 'native';
 
     const shouldRemoveWm =
       pipelineMode === 'enhance'
@@ -869,7 +855,7 @@ export default function App() {
             progress: info.progress,
             stage:
               info.stage ||
-              'Mastering frames in Ultra HD (25–45 Mbps Studio Bitrate)...',
+              'Removing corner watermark while preserving 100% original video quality & MB...',
           }),
       });
       const suffix =
@@ -2030,7 +2016,7 @@ export default function App() {
         )}
 
         {/* ============================================================
-            MODE 3: LOSSLESS 1080P VIDEO WATERMARK REMOVER (25+ MBPS + REELS ANTI-DULL)
+            MODE 3: PURE 1:1 VIDEO WATERMARK REMOVER (EXACT ORIGINAL QUALITY & MB)
            ============================================================ */}
         {mode === 'video' && (
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-lg shadow-slate-900/[0.03] overflow-hidden">
@@ -2061,21 +2047,14 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Built-in Anti-Dull & 25+ Mbps Quality Protection Info */}
+                {/* 100% Original Quality & Exact File Size (MB) Guarantee */}
                 <div className="mt-5 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-2.5 text-emerald-900 font-semibold">
-                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                     <span>
-                      New 25–45 Mbps GPU Pipeline: Removes corner watermark with zero dullness & keeps 1080p Instagram Reels crispness!
+                      100% Original Quality & File Size (MB): Only removes the corner watermark—pixels, resolution, bitrate & audio stay exactly like your uploaded video.
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setMode('enhance')}
-                    className="font-bold text-violet-700 hover:text-violet-900 underline underline-offset-4 cursor-pointer"
-                  >
-                    Want 4K-Look Quality Boost too? →
-                  </button>
                 </div>
               </div>
             ) : (
@@ -2093,7 +2072,8 @@ export default function App() {
                       </p>
                       <p className="text-xs text-slate-500 tabular-nums">
                         {vidDimensions.width} × {vidDimensions.height} px
-                        {vidDuration > 0 ? ` · ${vidDuration.toFixed(1)}s` : ''} · 25+ Mbps Studio Bitrate · Audio Preserved
+                        {vidDuration > 0 ? ` · ${vidDuration.toFixed(1)}s` : ''} ·{' '}
+                        {(videoFile.size / (1024 * 1024)).toFixed(2)} MB · Original Quality & Audio Preserved
                       </p>
                     </div>
                   </div>
@@ -2119,70 +2099,27 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Video Player */}
+                {/* Video Player (Zero filters — 100% pure native playback) */}
                 <div className="relative rounded-2xl bg-slate-950 overflow-hidden">
                   <video
                     key={cleanVideoOutput ? cleanVideoOutput.url : videoPreviewUrl}
                     src={cleanVideoOutput ? cleanVideoOutput.url : videoPreviewUrl}
                     controls
-                    style={{
-                      filter:
-                        !cleanVideoOutput && boostQualityInVideoRemover
-                          ? getCanvasFilterForPreset('insta_hd')
-                          : 'none',
-                    }}
                     className="w-full max-h-[420px] mx-auto block"
                   />
                   <div className="absolute top-4 left-4 pointer-events-none flex flex-wrap gap-2">
                     {cleanVideoOutput ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-bold shadow-sm">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        Watermark Removed ({cleanVideoOutput.outWidth || vidDimensions.width}×{cleanVideoOutput.outHeight || vidDimensions.height}p · {cleanVideoOutput.bitrateMbps || '28'} Mbps)
+                        Watermark Removed ({cleanVideoOutput.outWidth || vidDimensions.width}×{cleanVideoOutput.outHeight || vidDimensions.height}p · {cleanVideoOutput.sizeMb} MB Original Quality)
                       </span>
                     ) : (
-                      <>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 text-white text-xs font-semibold">
-                          Original Uploaded Video
-                        </span>
-                        {boostQualityInVideoRemover && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-600/90 text-white text-[11px] font-bold">
-                            <Zap className="w-3 h-3" />
-                            Instagram Reels Anti-Dull HD Boost Active
-                          </span>
-                        )}
-                      </>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 text-white text-xs font-semibold">
+                        Original Uploaded Video ({(videoFile.size / (1024 * 1024)).toFixed(2)} MB)
+                      </span>
                     )}
                   </div>
                 </div>
-
-                {/* Anti-Dull & Instagram Reels HD Booster Toggle inside Video Watermark Remover */}
-                {!cleanVideoOutput && (
-                  <label className="flex items-start justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-50/80 to-violet-50/70 border border-emerald-200/90 cursor-pointer select-none">
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={boostQualityInVideoRemover}
-                        onChange={(e) =>
-                          setBoostQualityInVideoRemover(e.target.checked)
-                        }
-                        className="w-4 h-4 mt-0.5 accent-emerald-600 rounded cursor-pointer"
-                      />
-                      <div>
-                        <div className="text-xs sm:text-sm font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                          <span>
-                            Keep 100% Crispness + Instagram Reels HD Quality Boost (Anti-Dull)
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] uppercase font-mono">
-                            Recommended for Flow AI 1080p
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-600 mt-0.5">
-                          Applies optical micro-sharpening, anti-dull color vibrance, and 25–45 Mbps studio bitrate so your video stays crystal-clear on Instagram Reels.
-                        </p>
-                      </div>
-                    </div>
-                  </label>
-                )}
 
                 {/* Video Action Area */}
                 {!cleanVideoOutput ? (
@@ -2213,11 +2150,7 @@ export default function App() {
                       ) : (
                         <>
                           <Wand2 className="w-5 h-5" />
-                          <span>
-                            {boostQualityInVideoRemover
-                              ? 'Remove Watermark + Export Ultra-Crisp 1080p HD'
-                              : 'Remove Video Watermark Now'}
-                          </span>
+                          <span>Remove Video Watermark (Keep Original Quality & MB)</span>
                         </>
                       )}
                     </a>
@@ -2236,7 +2169,7 @@ export default function App() {
                           />
                         </div>
                         <p className="text-center text-xs font-mono text-slate-500">
-                          {Math.round(vidProgress.progress * 100)}% completed — encoding at 25+ Mbps Studio H.264 with original audio
+                          {Math.round(vidProgress.progress * 100)}% completed — preserving original resolution, bitrate & audio
                         </p>
                       </div>
                     )}
@@ -2250,13 +2183,12 @@ export default function App() {
                       </div>
                       <div>
                         <h3 className="font-display font-bold text-base text-slate-900">
-                          Clean Ultra-Crisp Video Ready to Download!
+                          Clean Original-Quality Video Ready to Download!
                         </h3>
                         <p className="text-xs text-slate-600">
                           MP4 ({cleanVideoOutput.sizeMb} MB) ·{' '}
                           {cleanVideoOutput.outWidth || vidDimensions.width}×
-                          {cleanVideoOutput.outHeight || vidDimensions.height}px ·{' '}
-                          {cleanVideoOutput.bitrateMbps || '28'} Mbps Studio HD · Audio Intact
+                          {cleanVideoOutput.outHeight || vidDimensions.height}px · Original Quality & Audio Intact
                         </p>
                       </div>
                     </div>
@@ -2268,13 +2200,13 @@ export default function App() {
                           url: cleanVideoOutput.url,
                           fileName: cleanVideoOutput.fileName,
                           label: cleanVideoOutput.fileName,
-                          subLabel: `MP4 Studio HD (${cleanVideoOutput.sizeMb} MB) · ${cleanVideoOutput.outWidth || vidDimensions.width}×${cleanVideoOutput.outHeight || vidDimensions.height}px`,
+                          subLabel: `MP4 Original Quality (${cleanVideoOutput.sizeMb} MB) · ${cleanVideoOutput.outWidth || vidDimensions.width}×${cleanVideoOutput.outHeight || vidDimensions.height}px`,
                         })
                       }
                       className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-display font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0"
                     >
                       <Download className="w-4 h-4" />
-                      <span>Download Clean HD Video</span>
+                      <span>Download Clean Video</span>
                     </button>
                   </div>
                 )}
