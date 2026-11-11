@@ -6,7 +6,7 @@ export interface SecurityAuditResult {
 }
 
 const MAX_IMAGE_BYTES = 50 * 1024 * 1024; // 50 MB max image size (DoS protection)
-const MAX_VIDEO_BYTES = 300 * 1024 * 1024; // 300 MB max video size (DoS protection)
+const MAX_VIDEO_BYTES = 350 * 1024 * 1024; // 350 MB max video size (DoS protection)
 
 /**
  * Strips SQL Injection (' OR 1=1, UNION SELECT, --), XSS (<script>, javascript:),
@@ -39,7 +39,7 @@ export async function verifyFileMagicBytes(
         detectedFormat: 'Size Limit Exceeded',
         signatureHex: 'SIZE_BLOCK',
         reason: `File size exceeds safe memory limit (${
-          expectedCategory === 'image' ? '50 MB' : '300 MB'
+          expectedCategory === 'image' ? '50 MB' : '350 MB'
         }).`,
       };
     }
@@ -206,8 +206,8 @@ const ADMIN_SESSION_KEY = 'clearmark_admin_session_v1';
 export const DEFAULT_MONETIZATION_CONFIG: MonetizationConfig = {
   enabled: true,
   networkName: 'Monetag',
-  imageDownloadAdUrl: 'https://uplcm.com/4/12158181',
-  videoExportAdUrl: 'https://uplcm.com/4/12158178',
+  imageDownloadAdUrl: 'https://omg10.com/4/11542046',
+  videoExportAdUrl: 'https://omg10.com/4/11584190',
   triggerMode: 'every_download',
   smartCountdownModal: true,
   interstitialCountdownSec: 3,
@@ -278,8 +278,8 @@ export interface AdminCredentials {
 }
 
 export const DEFAULT_ADMIN_CREDENTIALS: AdminCredentials = {
-  adminId: 'Admin',
-  password: 'Siddikkhan_1811',
+  adminId: import.meta.env.VITE_ADMIN_ID || 'admin',
+  password: import.meta.env.VITE_ADMIN_PASSWORD || 'admin123',
 };
 
 export function loadAdminCredentials(): AdminCredentials {
