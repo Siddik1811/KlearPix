@@ -264,10 +264,10 @@ export const InfoSections: React.FC<InfoSectionsProps> = ({
                 3
               </div>
               <h3 className="font-display font-bold text-base text-slate-900 mb-1.5">
-                Download 100% HD Result
+                Download 100% Original Quality Result
               </h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Save your clean image (in PNG, WebP, or JPG) or MP4 video in full HD resolution with original audio preserved.
+                Save your clean image (in PNG, WebP, or JPG with optional camera EXIF) or MP4 video with exact original resolution, file size (MB), and audio preserved.
               </p>
             </div>
           </div>
