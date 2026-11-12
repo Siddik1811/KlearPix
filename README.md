@@ -3,7 +3,6 @@
 **Live Demo:** [https://klearpix.vercel.app](https://klearpix.vercel.app)
 
 **KlearPix** is a fast, 100% client-side AI watermark unblending web application that removes visible corner watermarks from **Google Gemini, Imagen 3, Nano Banana, Google Flow, Veo 3, and Nanonets** photos and videos without blurring or losing native resolution.
-
 ---
 
 ## 🚀 Key Features (5-Tool Studio)
